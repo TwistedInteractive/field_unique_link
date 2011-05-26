@@ -1,4 +1,4 @@
-# Unique field link #
+# Unique link field #
 
 This extension allows you to create a link to an unique URL, for example:
 when you want to send someone an e-mail with a link which is only valid for 24 hours.
