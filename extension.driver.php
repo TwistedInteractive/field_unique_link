@@ -3,24 +3,6 @@
 Class extension_field_unique_link extends Extension
 {
     /**
-     * About this extension
-     * @return array
-     */
-    public function about()
-    {
-        return array(
-            'name' => 'Field: Unique Link',
-            'version' => '1.00',
-            'release-date' => '2011-05-26',
-            'author' => array(
-                'name' => 'Giel Berkers',
-                'website' => 'http://www.gielberkers.com',
-                'email' => 'info@gielberkers.com'
-            )
-        );
-    }
-
-    /**
      * Installation script
      * @return void
      */

@@ -1,30 +1,42 @@
 <?php
 
 
-require_once(TOOLKIT . '/class.xsltprocess.php');
-
 Class fieldUnique_link extends Field
 {
-    public function __construct(&$parent)
+    public function __construct()
     {
-
-        parent::__construct($parent);
+        parent::__construct();
         $this->_name = __('Unique Link');
         $this->_required = false;
-
         $this->set('required', 'no');
-
-
     }
 
-    public function allowDatasourceParamOutput()
-    {
-        return true;
-    }
+	public function canFilter(){
+		return true;
+	}
+
+	public function canImport(){
+		return true;
+	}
+
+	public function canPrePopulate(){
+		return true;
+	}
+
+	public function isSortable(){
+		return true;
+	}
+
+	public function allowDatasourceOutputGrouping(){
+		return true;
+	}
+
+	public function allowDatasourceParamOutput(){
+		return true;
+	}
 
     public function displayPublishPanel(&$wrapper, $data = NULL, $flagWithError = NULL, $fieldnamePrefix = NULL, $fieldnamePostfix = NULL)
     {
-        $value = General::sanitize($data['code']);
         $label = Widget::Label($this->get('label'));
 
         $label->appendChild(new XMLElement('a', __('Select Link'), array('style' => 'float: right;', 'onclick' => "
@@ -36,105 +48,84 @@ Class fieldUnique_link extends Field
 
         $value = $data === null ? __('A link will automaticly be generated when you save this entry') : $link;
 
-        $label->appendChild(Widget::Input('fields' . $fieldnamePrefix . '[' . $this->get('element_name') . ']' . $fieldnamePostfix,
-                                          $value,
-                                          null, array('id' => 'unique_link_' . $this->get('id'), 'readonly' => 'readonly', 'style' => 'background: #eee; color: #666; border: 1px solid #ccc;')));
+        $label->appendChild(Widget::Input('fields'.$fieldnamePrefix.'['.$this->get('element_name').']'.$fieldnamePostfix,
+			$value, 'text', array('id' => 'unique_link_' . $this->get('id'),
+		        'readonly' => 'readonly',
+		        'style' => 'background: #eee; color: #666; border: 1px solid #ccc;')
+            )
+        );
 
-        if ($flagWithError != NULL) $wrapper->appendChild(Widget::wrapFormElementWithError($label, $flagWithError));
+        if ($flagWithError != NULL) $wrapper->appendChild(Widget::Error($label, $flagWithError));
         else $wrapper->appendChild($label);
     }
 
-    public function isSortable()
-    {
-        return true;
-    }
+	public function buildSortingSQL(&$joins, &$where, &$sort, $order='ASC'){
+		if(in_array(strtolower($order), array('random', 'rand'))) {
+			$sort = 'ORDER BY RAND()';
+		}
+		else {
+			$sort = sprintf(
+				'ORDER BY (
+					SELECT %s
+					FROM tbl_entries_data_%d AS `ed`
+					WHERE entry_id = e.id
+				) %s',
+				'`ed`.code',
+				$this->get('id'),
+				$order
+			);
+		}
+	}
 
-    public function canFilter()
-    {
-        return true;
-    }
+	public function buildDSRetrievalSQL($data, &$joins, &$where, $andOperation = false) {
+		$field_id = $this->get('id');
 
-    public function canImport()
-    {
-        return true;
-    }
-
-    public function buildSortingSQL(&$joins, &$where, &$sort, $order = 'ASC')
-    {
-        $joins .= "LEFT OUTER JOIN `tbl_entries_data_" . $this->get('id') . "` AS `ed` ON (`e`.`id` = `ed`.`entry_id`) ";
-        $sort = 'ORDER BY ' . (in_array(strtolower($order), array('random', 'rand')) ? 'RAND()'
-                : "`ed`.`code` $order");
-    }
-
-    public function buildDSRetrievalSQL($data, &$joins, &$where, $andOperation = false)
-    {
-        $field_id = $this->get('id');
-
-        if (self::isFilterRegex($data[0])) {
-            $this->_key++;
-
-            if (preg_match('/^regexp:/i', $data[0])) {
-                $pattern = preg_replace('/regexp:/i', null, $this->cleanValue($data[0]));
-                $regex = 'REGEXP';
-            } else {
-                $pattern = preg_replace('/not-?regexp:/i', null, $this->cleanValue($data[0]));
-                $regex = 'NOT REGEXP';
-            }
-
-            $joins .= "
+		if (self::isFilterRegex($data[0])) {
+			$this->buildRegexSQL($data[0], array('value', 'handle'), $joins, $where);
+		}
+		else if ($andOperation) {
+			foreach ($data as $value) {
+				$this->_key++;
+				$value = $this->cleanValue($value);
+				$joins .= "
 					LEFT JOIN
 						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
 						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
 				";
-            $where .= "
+				$where .= "
 					AND (
-						t{$field_id}_{$this->_key}.code {$regex} '{$pattern}'
+						t{$field_id}_{$this->_key}.code = '{$value}'
 					)
 				";
+			}
+		}
 
-        } elseif ($andOperation) {
-            foreach ($data as $value) {
-                $this->_key++;
-                $value = $this->cleanValue($value);
-                $joins .= "
-						LEFT JOIN
-							`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
-							ON (e.id = t{$field_id}_{$this->_key}.entry_id)
-					";
-                $where .= "
-						AND (
-							t{$field_id}_{$this->_key}.code = '{$value}'
-						)
-					";
-            }
+		else {
+			if (!is_array($data)) $data = array($data);
 
-        } else {
-            if (!is_array($data)) $data = array($data);
+			foreach ($data as &$value) {
+				$value = $this->cleanValue($value);
+			}
 
-            foreach ($data as &$value) {
-                $value = $this->cleanValue($value);
-            }
+			$this->_key++;
+			$data = implode("', '", $data);
+			$joins .= "
+				LEFT JOIN
+					`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
+					ON (e.id = t{$field_id}_{$this->_key}.entry_id)
+			";
+			$where .= "
+				AND (
+					t{$field_id}_{$this->_key}.code IN ('{$data}')
+				)
+			";
+		}
 
-            $this->_key++;
-            $data = implode("', '", $data);
-            $joins .= "
-					LEFT JOIN
-						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
-						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
-				";
-            $where .= "
-					AND (
-						t{$field_id}_{$this->_key}.code IN ('{$data}')
-					)
-				";
-        }
+		return true;
+	}
 
-        return true;
-    }
-
-    public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null)
+	public function processRawFieldData($data, &$status, &$message=null, $simulate = false, $entry_id = null)
     {
-
         $status = self::__OK__;
 
         if (strlen(trim($data)) == 0) return array();
@@ -159,12 +150,6 @@ Class fieldUnique_link extends Field
         );
 
         return $result;
-
-    }
-
-    public function canPrePopulate()
-    {
-        return true;
     }
 
     /**
@@ -175,8 +160,7 @@ Class fieldUnique_link extends Field
     private function deleteEntryAccordingToCode($code)
     {
         $entry_id = Symphony::Database()->fetchVar('entry_id', 0, 'SELECT `entry_id` FROM `tbl_entries_data_' . $this->get('id') . '` WHERE `code` = \'' . $code . '\';');
-        $em = new EntryManager($this);
-        $em->delete($entry_id);
+        EntryManager::delete($entry_id);
         // Redirect:
         redirect(URL . $_SERVER['REQUEST_URI']);
     }
@@ -209,7 +193,6 @@ Class fieldUnique_link extends Field
 
     public function commit()
     {
-
         if (!parent::commit()) return false;
 
         $id = $this->get('id');
@@ -218,15 +201,11 @@ Class fieldUnique_link extends Field
 
         $fields = array();
 
-        $fields['field_id'] = $id;
         $fields['link'] = $this->get('link');
         $fields['hours'] = $this->get('hours');
         $fields['auto_delete'] = $this->get('auto_delete') == 'yes' ? 1 : 0;
 
-        Symphony::Database()->query("DELETE FROM `tbl_fields_" . $this->handle() . "` WHERE `field_id` = '$id' LIMIT 1");
-
-        return Symphony::Database()->insert($fields, 'tbl_fields_' . $this->handle());
-
+        FieldManager::saveSettings($id, $fields);
     }
 
     public function prepareTableValue($data, XMLElement $link = null)
@@ -275,9 +254,9 @@ Class fieldUnique_link extends Field
 
         $div = new XMLElement('div', NULL, array('class' => 'group'));
         $div->appendChild(Widget::Label(__('Link (parameters: <em>[URL]</em>, <em>[CODE]</em>):'),
-                                        Widget::Input('fields[' . $this->get('sortorder') . '][link]', $link)));
+            Widget::Input('fields[' . $this->get('sortorder') . '][link]', (string)$link)));
         $div->appendChild(Widget::Label(__('Hours valid:'),
-                                        Widget::Input('fields[' . $this->get('sortorder') . '][hours]', $hours)));
+            Widget::Input('fields[' . $this->get('sortorder') . '][hours]', (string)$hours)));
         $wrapper->appendChild($div);
 
         $div = new XMLElement('div', NULL, array('class' => 'compact'));
@@ -297,9 +276,7 @@ Class fieldUnique_link extends Field
 
     public function createTable()
     {
-
         return Symphony::Database()->query(
-
             "CREATE TABLE IF NOT EXISTS `tbl_entries_data_" . $this->get('id') . "` (
 				  `id` int(11) unsigned NOT NULL auto_increment,
 				  `entry_id` int(11) unsigned NOT NULL,
@@ -308,7 +285,6 @@ Class fieldUnique_link extends Field
 				  PRIMARY KEY  (`id`),
 				  UNIQUE KEY `entry_id` (`entry_id`)
 				) ENGINE=MyISAM;"
-
         );
     }
 
