@@ -311,8 +311,7 @@ Class fieldUnique_link extends Field
 				  `code` varchar(255) default NULL,
 				  `timestamp` varchar(255) NOT NULL,
 				  PRIMARY KEY  (`id`),
-				  UNIQUE KEY `entry_id` (`entry_id`),
-				  KEY `value` (`value`)
+				  UNIQUE KEY `entry_id` (`entry_id`)
 				) ENGINE=MyISAM;"
 
         );
