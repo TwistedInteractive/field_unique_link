@@ -226,8 +226,6 @@ Class fieldUnique_link extends Field
         $fields['hours'] = $this->get('hours');
         $fields['auto_delete'] = $this->get('auto_delete') == 'yes' ? 1 : 0;
 
-        print_r($fields);
-
         Symphony::Database()->query("DELETE FROM `tbl_fields_" . $this->handle() . "` WHERE `field_id` = '$id' LIMIT 1");
 
         return Symphony::Database()->insert($fields, 'tbl_fields_' . $this->handle());
