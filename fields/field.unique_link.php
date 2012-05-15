@@ -63,7 +63,7 @@ Class fieldUnique_link extends Field
     {
         $joins .= "LEFT OUTER JOIN `tbl_entries_data_" . $this->get('id') . "` AS `ed` ON (`e`.`id` = `ed`.`entry_id`) ";
         $sort = 'ORDER BY ' . (in_array(strtolower($order), array('random', 'rand')) ? 'RAND()'
-                : "`ed`.`value` $order");
+                : "`ed`.`code` $order");
     }
 
     public function buildDSRetrievalSQL($data, &$joins, &$where, $andOperation = false)
@@ -88,8 +88,7 @@ Class fieldUnique_link extends Field
 				";
             $where .= "
 					AND (
-						t{$field_id}_{$this->_key}.value {$regex} '{$pattern}'
-						OR t{$field_id}_{$this->_key}.handle {$regex} '{$pattern}'
+						t{$field_id}_{$this->_key}.code {$regex} '{$pattern}'
 					)
 				";
 
@@ -104,8 +103,7 @@ Class fieldUnique_link extends Field
 					";
                 $where .= "
 						AND (
-							t{$field_id}_{$this->_key}.value = '{$value}'
-							OR t{$field_id}_{$this->_key}.handle = '{$value}'
+							t{$field_id}_{$this->_key}.code = '{$value}'
 						)
 					";
             }
@@ -126,8 +124,7 @@ Class fieldUnique_link extends Field
 				";
             $where .= "
 					AND (
-						t{$field_id}_{$this->_key}.value IN ('{$data}')
-						OR t{$field_id}_{$this->_key}.handle IN ('{$data}')
+						t{$field_id}_{$this->_key}.code IN ('{$data}')
 					)
 				";
         }
